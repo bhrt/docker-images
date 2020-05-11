@@ -19,7 +19,17 @@ set -e
 export ORACLE_SID=${1:-ORCLCDB}
 
 # Check whether ORACLE_PDB is passed on
-export ORACLE_PDB=${2:-ORCLPDB1}
+export ORACLE_PDB=${2:-NONCDB}
+
+export ORACLE_NONCDB=${4:-false}
+
+if [ "x$ORACLE_NONCDB" = "xfalse" ]; then
+  export ORACLE_USECDB=true
+  export ORACLE_NBRPDB=1
+else
+  export ORACLE_USECDB=false
+  export ORACLE_NBRPDB=0
+fi
 
 # Auto generate ORACLE PWD if not passed on
 export ORACLE_PWD=${3:-"`openssl rand -base64 8`1"}
@@ -31,6 +41,8 @@ sed -i -e "s|###ORACLE_SID###|$ORACLE_SID|g" $ORACLE_BASE/dbca.rsp
 sed -i -e "s|###ORACLE_PDB###|$ORACLE_PDB|g" $ORACLE_BASE/dbca.rsp
 sed -i -e "s|###ORACLE_PWD###|$ORACLE_PWD|g" $ORACLE_BASE/dbca.rsp
 sed -i -e "s|###ORACLE_CHARACTERSET###|$ORACLE_CHARACTERSET|g" $ORACLE_BASE/dbca.rsp
+sed -i -e "s|###ORACLE_USECDB###|$ORACLE_USECDB|g" $ORACLE_BASE/dbca.rsp
+sed -i -e "s|###ORACLE_NBRPDB###|$ORACLE_NBRPDB|g" $ORACLE_BASE/dbca.rsp
 
 # If there is greater than 8 CPUs default back to dbca memory calculations
 # dbca will automatically pick 40% of available memory for Oracle DB
@@ -74,13 +86,20 @@ echo "$ORACLE_PDB=
     )
   )" >> $ORACLE_HOME/network/admin/tnsnames.ora
 
-# Remove second control file, fix local_listener, make PDB auto open, enable EM global port
+# Remove second control file, fix local_listener, enable EM global port
 sqlplus / as sysdba << EOF
    ALTER SYSTEM SET control_files='$ORACLE_BASE/oradata/$ORACLE_SID/control01.ctl' scope=spfile;
-   ALTER PLUGGABLE DATABASE $ORACLE_PDB SAVE STATE;
    EXEC DBMS_XDB_CONFIG.SETGLOBALPORTENABLED (TRUE);
    exit;
 EOF
+
+#make PDB auto open
+if [ "x$ORACLE_NONCDB" = "xfalse" ]; then
+sqlplus / as sysdba << EOF
+   ALTER PLUGGABLE DATABASE $ORACLE_PDB SAVE STATE;
+   exit;
+EOF
+fi
 
 # Remove temporary response file
 rm $ORACLE_BASE/dbca.rsp

@@ -12,7 +12,7 @@
 usage() {
   cat << EOF
 
-Usage: buildDockerImage.sh -v [version] [-e | -s | -x] [-i] [-o] [Docker build option]
+Usage: buildDockerImage.sh -v [version] [-e | -s | -x] [-n] [-i] [-o] [Docker build option]
 Builds a Docker Image for Oracle Database.
   
 Parameters:
@@ -20,6 +20,7 @@ Parameters:
        Choose one of: $(for i in $(ls -d */); do echo -n "${i%%/}  "; done)
    -e: creates image based on 'Enterprise Edition'
    -s: creates image based on 'Standard Edition 2'
+   -n: create a non CDB database
    -x: creates image based on 'Express Edition'
    -i: ignores the MD5 checksums
    -o: passes on Docker build option
@@ -97,13 +98,14 @@ DOCKEROPS=""
 MIN_DOCKER_VERSION="17.09"
 MIN_PODMAN_VERSION="1.6.0"
 DOCKERFILE="Dockerfile"
+NONCDB="false"
 
 if [ "$#" -eq 0 ]; then
   usage;
   exit 1;
 fi
 
-while getopts "hesxiv:o:" optname; do
+while getopts "hesxiv:o:n" optname; do
   case "$optname" in
     "h")
       usage
@@ -120,6 +122,9 @@ while getopts "hesxiv:o:" optname; do
       ;;
     "x")
       EXPRESS=1
+      ;;
+    "n")
+      NONCDB="true"
       ;;
     "v")
       VERSION="$OPTARG"
@@ -168,6 +173,10 @@ fi;
 # Oracle Database Image Name
 IMAGE_NAME="oracle/database:$VERSION-$EDITION"
 
+if [ "$NONCDB" = "true" ]; then
+  IMAGE_NAME="$IMAGE_NAME-noncdb"
+fi
+
 # Go into version folder
 cd "$VERSION" || {
   echo "Could not find version directory '$VERSION'";
@@ -214,7 +223,7 @@ echo "Building image '$IMAGE_NAME' ..."
 # BUILD THE IMAGE (replace all environment variables)
 BUILD_START=$(date '+%s')
 docker build --force-rm=true --no-cache=true \
-       $DOCKEROPS $PROXY_SETTINGS --build-arg DB_EDITION=$EDITION \
+       $DOCKEROPS $PROXY_SETTINGS --build-arg NONCDB=$NONCDB --build-arg DB_EDITION=$EDITION \
        -t $IMAGE_NAME -f $DOCKERFILE . || {
   echo ""
   echo "ERROR: Oracle Database Docker Image was NOT successfully created."
