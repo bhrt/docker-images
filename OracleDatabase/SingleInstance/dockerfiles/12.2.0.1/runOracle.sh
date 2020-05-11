@@ -147,7 +147,7 @@ else
 fi;
 
 # Default for ORACLE PDB
-export ORACLE_PDB=${ORACLE_PDB:-ORCLPDB1}
+export ORACLE_PDB=${ORACLE_PDB:-NONCDB}
 
 # Make ORACLE_PDB upper case
 # Github issue # 984
@@ -177,7 +177,7 @@ else
   rm -f $ORACLE_HOME/network/admin/tnsnames.ora
    
   # Create database
-  $ORACLE_BASE/$CREATE_DB_FILE $ORACLE_SID $ORACLE_PDB $ORACLE_PWD;
+  $ORACLE_BASE/$CREATE_DB_FILE $ORACLE_SID $ORACLE_PDB $ORACLE_PWD $ORACLE_NONCDB;
    
   # Move database operational files to oradata
   moveFiles;
