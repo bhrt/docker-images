@@ -6,8 +6,8 @@
 # Since: May, 2017
 # Author: gerald.venzl@oracle.com
 # Description: Checks the status of Oracle Database.
-# Return codes: 0 = PDB is open and ready to use
-#               1 = PDB is not open
+# Return codes: 0 = DB is open and ready to use
+#               1 = DB is not open
 #               2 = Sql Plus execution failed
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
 # 
@@ -15,23 +15,30 @@
 ORACLE_SID="`grep $ORACLE_HOME /etc/oratab | cut -d: -f1`"
 OPEN_MODE="READ WRITE"
 ORAENV_ASK=NO
+ORACLE_NONCDB=$ORACLE_NONCDB
 source oraenv
 
-# Check Oracle at least one PDB has open_mode "READ WRITE" and store it in status
+if [ "x$ORACLE_NONCDB" = "xfalse" ]; then
+   TABLE="v\$pdbs"
+else
+   TABLE="v\$containers"
+fi
+
+# Check Oracle at least one DB has open_mode "READ WRITE" and store it in status
 status=`sqlplus -s / as sysdba << EOF
    set heading off;
    set pagesize 0;
-   SELECT DISTINCT open_mode FROM v\\$pdbs WHERE open_mode = '$OPEN_MODE';
+   SELECT DISTINCT open_mode FROM $TABLE WHERE open_mode = '$OPEN_MODE';
    exit;
 EOF`
 
 # Store return code from SQL*Plus
 ret=$?
 
-# SQL Plus execution was successful and PDB is open
+# SQL Plus execution was successful and DB is open
 if [ $ret -eq 0 ] && [ "$status" = "$OPEN_MODE" ]; then
    exit 0;
-# PDB is not open
+# DB is not open
 elif [ "$status" != "$OPEN_MODE" ]; then
    exit 1;
 # SQL Plus execution failed
